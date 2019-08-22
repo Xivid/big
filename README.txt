@@ -94,7 +94,7 @@ Dedicate PCPU to VCPU
 ---------------------
 - Isolate the PCPUs by isolcpus.
 - Boot up the QEMU/KVM guest.
-- Pin each VCPU thread to its PCPU, one VCPU per PCPU.
+- Pin each VCPU(x) to its PCPU(x+1), where x = 0,1,2,...,n
   # taskset -cp $pcpu $vcpu
 
 Enable Direct Timer Interrupt and IPI in the Guest
