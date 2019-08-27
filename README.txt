@@ -29,6 +29,7 @@ Source Code
 Pre-Requisite
 -------------
 - Enable VT-x and VT-d from BIOS.
+- Disable Intel Hyperthreading.
 - Use Linux 4.10.1 for both the host and guest.
 - Use VFIO for the directed I/O.
 - Use QEMU 2.9.1 or above.
