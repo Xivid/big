@@ -28,6 +28,8 @@ Source Code
 
 Pre-Requisite
 -------------
+- Need the posted-interrupt support.
+  Example: Intel(R) Xeon(R) CPU E5-2630 v4
 - Enable VT-x and VT-d from BIOS.
 - Disable Intel Hyperthreading.
 - Use Linux 4.10.1 for both the host and guest.
