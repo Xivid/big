@@ -37,6 +37,13 @@ remove:
 	rmmod kvm.ko
 	rmmod irqbypass.ko
 
-.PHONY: clean
+cscope:
+	cscope -bqk -R
+	ctags -R
+
+.PHONY: clean clean_scope
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+
+clean_cscope:
+	rm cscope* tags
