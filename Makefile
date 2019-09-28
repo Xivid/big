@@ -32,7 +32,14 @@ remove:
 run_did: $(DID_DIR)/run_did.c $(DID_DIR)/did.h
 	gcc -Wall -o $(DID_DIR)/run_did $(DID_DIR)/run_did.c
 
-.PHONY: clean
+cscope:
+	cscope -bqk -R
+	ctags -R
+
+.PHONY: clean clean_cscope
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 	rm $(DID_DIR)/run_did
+
+clean_cscope:
+	rm cscope* tags
