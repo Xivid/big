@@ -644,6 +644,17 @@ static int send_ipi(unsigned long arg)
         return ret;
 }
 
+static int hc_get_x2apic_id(void)
+{
+        int phys_apicid;
+
+        phys_apicid = kvm_hypercall0(KVM_HC_GET_X2APIC_ID);
+        pr_info("cpu %d hypercalls to get phys x2apic id: 0x%x\n",
+                smp_processor_id(), phys_apicid);
+
+        return phys_apicid;
+}
+
 static void hc_set_x2apic_id(void)
 {
         kvm_hypercall0(KVM_HC_SET_X2APIC_ID);
@@ -886,6 +897,9 @@ static long my_ioctl(struct file *fobj, unsigned int cmd, unsigned long arg)
         case HC_RESTORE_DTID:
                 if (!hc_restore_dtid())
                         ret = -EAGAIN;
+                break;
+        case HC_GET_X2APIC_ID:
+                ret = hc_get_x2apic_id();
                 break;
         case HC_SET_X2APIC_ID:
                 hc_set_x2apic_id();

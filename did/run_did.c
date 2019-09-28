@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "- hc_unmap_pid\n");
                 fprintf(stderr, "- hc_page_walk\n");
                 fprintf(stderr, "- hc_set_x2apic_id\n");
+                fprintf(stderr, "- hc_get_x2apic_id\n");
                 fprintf(stderr, "- hc_restore_x2apic_id\n");
                 fprintf(stderr, "- hc_setup_dtid\n");
                 fprintf(stderr, "- hc_restore_dtid\n");
@@ -150,6 +151,9 @@ int main(int argc, char *argv[])
                         goto error;
         } else if (strcmp(op, "hc_set_x2apic_id") == 0) {
                 if (ioctl(fd, HC_SET_X2APIC_ID) < 0)
+                        goto error;
+        } else if (strcmp(op, "hc_get_x2apic_id") == 0) {
+                if (ioctl(fd, HC_GET_X2APIC_ID) < 0)
                         goto error;
         } else if (strcmp(op, "hc_restore_x2apic_id") == 0) {
                 if (ioctl(fd, HC_RESTORE_X2APIC_ID) < 0)
