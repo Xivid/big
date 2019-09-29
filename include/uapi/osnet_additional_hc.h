@@ -51,6 +51,7 @@
 #define KVM_HC_SET_PIN_BASED_EXEC_VMCS          307
 #define KVM_HC_SET_SECONDARY_EXEC_VMCS          308
 #define KVM_HC_SET_EXCEPTION_BITMAP             309
+#define KVM_HC_GET_X2APIC_ID                    310
 #define KVM_HC_GET_CLOCKEVENT_MULT              400
 #define KVM_HC_GET_CLOCKEVENT_SHIFT             401
 #define KVM_HC_TEST                             500

@@ -6362,6 +6362,11 @@ static bool hypercall_page_walk(struct kvm_vcpu *vcpu, unsigned long gpa)
 #endif
 
 #if OSNET_SET_X2APIC_ID
+static int osnet_get_x2apic_id(void)
+{
+        return per_cpu(x86_cpu_to_apicid, smp_processor_id());
+}
+
 static void osnet_setup_x2apic_id(struct kvm_vcpu *vcpu)
 {
         int cpu;
@@ -6616,6 +6621,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 #endif
 #if OSNET_SET_X2APIC_ID
         /* TODO: remove */
+        case KVM_HC_GET_X2APIC_ID:
+                ret = osnet_get_x2apic_id();
+                break;
         case KVM_HC_SET_X2APIC_ID:
                 osnet_setup_x2apic_id(vcpu);
                 ret = 0;
