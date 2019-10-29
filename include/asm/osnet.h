@@ -46,4 +46,30 @@ struct osnet_pi_desc {
                         OSNET_GET_CLOCKEVENT_FACTOR && \
                         OSNET_DTID_PI_DESC
 
+/* MVM: multiple-vm hypervisor*/
+#define OSNET_MVM 1
+#if OSNET_MVM
+
+#define OSNET_STRING_LENGTH 100
+#define OSNET_MAX_VCPU_ID 1024
+#define OSNET_NULL_CHAR '\0'
+#define OSNET_FALSE_VALUE -1
+
+#define OSNET_KVMIO 0xBE
+#define OSNET_KVM_SET_CPUMAP   _IOW(OSNET_KVMIO, 0x00, struct osnet_cpumap)
+
+struct osnet_cpumap {
+        int pcpus[OSNET_MAX_VCPU_ID];
+        unsigned int nvcpus;
+        bool is_valid;
+        char path[OSNET_STRING_LENGTH];
+};
+
+struct osnet_tid_cpumap {
+        int tids[OSNET_MAX_VCPU_ID];
+        struct osnet_cpumap cpumap;
+};
+
+#endif
+
 #endif  /* _ASM_X86_OSNET_H */

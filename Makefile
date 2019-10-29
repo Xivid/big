@@ -44,6 +44,4 @@ cscope:
 .PHONY: clean clean_scope
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-
-clean_cscope:
 	rm cscope* tags

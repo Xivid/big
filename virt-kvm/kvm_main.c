@@ -38,8 +38,10 @@
 #include <linux/smp.h>
 #include <linux/anon_inodes.h>
 #include <linux/profile.h>
+/* OSNET */
 //#include <linux/kvm_para.h>
 #include "../include/linux/kvm_para.h"
+/* OSNET-END */
 #include <linux/pagemap.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
@@ -2957,6 +2959,20 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	return kvm_vm_ioctl_check_extension(kvm, arg);
 }
 
+#if OSNET_MVM
+static int osnet_kvm_ioctl_set_cpumap(struct kvm *kvm, const void __user *argp)
+{
+        int ret;
+
+        ret = copy_from_user(&(kvm->osnet_tid_cpumap.cpumap), argp,
+                             sizeof(kvm->osnet_tid_cpumap.cpumap));
+        if (ret)
+                pr_err("bytes could not be copied: %d\n", ret);
+
+        return ret;
+}
+#endif
+
 static long kvm_vm_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -3116,7 +3132,12 @@ out_free_irq_routing:
 	case KVM_CHECK_EXTENSION:
 		r = kvm_vm_ioctl_check_extension_generic(kvm, arg);
 		break;
-	default:
+#if OSNET_MVM
+	case OSNET_KVM_SET_CPUMAP:
+                r = osnet_kvm_ioctl_set_cpumap(kvm, argp);
+		break;
+#endif
+        default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 	}
 out:

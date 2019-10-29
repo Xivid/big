@@ -437,6 +437,10 @@ struct kvm {
 #if OSNET_DTID_PI_DESC
         struct osnet_pi_desc osnet_pid;
 #endif
+
+#if OSNET_MVM
+        struct osnet_tid_cpumap osnet_tid_cpumap;
+#endif
 };
 
 #define kvm_err(fmt, ...) \

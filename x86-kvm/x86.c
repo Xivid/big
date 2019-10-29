@@ -19,8 +19,10 @@
  *
  */
 
+/* OSNET */
 //#include <linux/kvm_host.h>
 #include "../include/linux/kvm_host.h"
+/* OSNET-END */
 #include "irq.h"
 #include "mmu.h"
 #include "i8254.h"
@@ -6500,8 +6502,29 @@ static void osnet_set_lapic(bool oneshot, bool timer_vector, u32 val)
         apic_write(APIC_TMICT, val);
 }
 
+static void osnet_print_tid_cpumap(const struct kvm_vcpu *vcpu)
+{
+        const struct osnet_tid_cpumap *tid_cpumap;
+        const struct osnet_cpumap *cpumap;
+
+        tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
+        cpumap = &(tid_cpumap->cpumap);
+
+        pr_info("path: %s\n", cpumap->path);
+
+        for (int i = 0; i < OSNET_MAX_VCPU_ID; i++) {
+                if (cpumap->is_valid && cpumap->pcpus[i] != OSNET_FALSE_VALUE)
+                        pr_info("vcpu-tid-pcpu: %d\t%d\t%d\n",
+                                i, tid_cpumap->tids[i], cpumap->pcpus[i]);
+        }
+
+        pr_info("is_valid: %d\n", cpumap->is_valid);
+
+        pr_info("nvcpus: %d\n", cpumap->nvcpus);
+}
+
 static unsigned long osnet_setup_dtid(struct kvm_vcpu *vcpu,
-                                               unsigned long gpa)
+                                      unsigned long gpa)
 {
         unsigned long ret;
 
@@ -6516,7 +6539,7 @@ static unsigned long osnet_setup_dtid(struct kvm_vcpu *vcpu,
 }
 
 static unsigned long osnet_restore_dtid(struct kvm_vcpu *vcpu,
-                                                 unsigned long gpa)
+                                        unsigned long gpa)
 {
         unsigned long ret;
 
@@ -6668,6 +6691,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
                 break;
         case KVM_HC_TEST:
                 osnet_test(vcpu, a0);
+                osnet_print_tid_cpumap(vcpu);
                 ret = 0;
                 break;
 #endif

@@ -1,4 +1,3 @@
-
 /*
  * Local APIC virtualization
  *
@@ -268,14 +267,47 @@ void osnet_kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 }
 
 /* Assume pinning vcpu_id to pcpu = vcpu_id + 1 */
-static void osnet_kvm_apic_set_phys_x2apic_id(struct kvm_lapic *apic,
-                                              u32 vcpu_id)
-{
-        int vapicid;
+//static void osnet_kvm_apic_set_phys_x2apic_id(struct kvm_lapic *apic,
+//                                              u32 vcpu_id)
+//{
+//        int vapicid;
+//
+//        vapicid = per_cpu(x86_cpu_to_apicid, vcpu_id + 1);
+//        kvm_apic_set_x2apic_id(apic, vapicid);
+//}
+#endif
 
-        vapicid = per_cpu(x86_cpu_to_apicid, vcpu_id + 1);
-        kvm_apic_set_x2apic_id(apic, vapicid);
+#if OSNET_MVM
+static void osnet_kvm_cpumap_set_tid(struct kvm_vcpu *vcpu)
+{
+        int vcpuid;
+        struct task_struct *task;
+        struct osnet_tid_cpumap *tid_cpumap;
+
+        task = pid_task(vcpu->pid, PIDTYPE_PID);
+        vcpuid = vcpu->vcpu_id;
+        tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
+        tid_cpumap->tids[vcpuid] = task->pid;
 }
+
+static void osnet_kvm_cpumap_set_x2apic_id(struct kvm_vcpu *vcpu)
+{
+        int vcpuid;
+        int vapicid;
+        int pcpu;
+	struct kvm_lapic *apic;
+        struct osnet_cpumap *cpumap;
+
+        cpumap = &(vcpu->kvm->osnet_tid_cpumap.cpumap);
+        vcpuid = vcpu->vcpu_id;
+        pcpu = cpumap->pcpus[vcpuid];
+        vapicid = per_cpu(x86_cpu_to_apicid, pcpu);
+	apic = vcpu->arch.apic;
+        kvm_apic_set_x2apic_id(apic, vapicid);
+
+        pr_info("vcpuid-pcpu: %d\t%d\n", vcpuid, pcpu);
+}
+
 #endif
 
 static inline int apic_lvt_enabled(struct kvm_lapic *apic, int lvt_type)
@@ -1829,6 +1861,11 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	u64 old_value = vcpu->arch.apic_base;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
+#if OSNET_MVM
+        struct osnet_cpumap *cpumap;
+        cpumap = &(vcpu->kvm->osnet_tid_cpumap.cpumap);
+#endif
+
 	if (!apic)
 		value |= MSR_IA32_APICBASE_BSP;
 
@@ -1853,8 +1890,15 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 
 	if ((old_value ^ value) & X2APIC_ENABLE) {
 		if (value & X2APIC_ENABLE) {
-#if OSNET_SET_X2APIC_ID 
-                        osnet_kvm_apic_set_phys_x2apic_id(apic, vcpu->vcpu_id);
+#if OSNET_MVM
+//#if OSNET_SET_X2APIC_ID 
+                        //osnet_kvm_apic_set_phys_x2apic_id(apic, vcpu->vcpu_id);
+                        if (cpumap->is_valid) {
+                                osnet_kvm_cpumap_set_x2apic_id(vcpu);
+                                osnet_kvm_cpumap_set_tid(vcpu);
+                        } else {
+                                kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
+                        }
 #else
                         kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
 #endif
