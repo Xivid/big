@@ -1057,6 +1057,13 @@ struct kvm_x86_ops {
         void (*enable_intercept_msr_x2apic)(u32 msr, int type,
                                             bool apicv_active);
 #endif
+
+#if OSNET_MVM
+        void (*disable_intercept_vcpu_msr_x2apic)(struct kvm_vcpu *vcpu, u32 msr,
+                                                  int type, bool apicv_active);
+        void (*enable_intercept_vcpu_msr_x2apic)(struct kvm_vcpu *vcpu, u32 msr,
+                                                 int type, bool apicv_active);
+#endif
 };
 
 struct kvm_arch_async_pf {

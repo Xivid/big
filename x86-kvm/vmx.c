@@ -21,8 +21,10 @@
 #include "cpuid.h"
 #include "lapic.h"
 
+/* OSNET */
 //#include <linux/kvm_host.h>
 #include "../include/linux/kvm_host.h"
+/* OSNET-END */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -632,6 +634,15 @@ struct vcpu_vmx {
         struct pi_desc *pi_desc;
 #else
         struct pi_desc pi_desc;
+#endif
+
+#if OSNET_MVM
+        unsigned long *osnet_msr_bitmap_legacy;
+        unsigned long *osnet_msr_bitmap_legacy_x2apic;
+        unsigned long *osnet_msr_bitmap_legacy_x2apic_apicv;
+        unsigned long *osnet_msr_bitmap_longmode;
+        unsigned long *osnet_msr_bitmap_longmode_x2apic;
+        unsigned long *osnet_msr_bitmap_longmode_x2apic_apicv;
 #endif
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
@@ -2565,6 +2576,40 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 	vmx->guest_msrs[from] = tmp;
 }
 
+#if OSNET_MVM
+static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
+{
+        struct vcpu_vmx *vmx;
+	unsigned long *msr_bitmap;
+
+        vmx = to_vmx(vcpu);
+
+	if (is_guest_mode(vcpu))
+		msr_bitmap = to_vmx(vcpu)->nested.msr_bitmap;
+	else if (cpu_has_secondary_exec_ctrls() &&
+		 (vmcs_read32(SECONDARY_VM_EXEC_CONTROL) &
+		  SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
+		if (enable_apicv && kvm_vcpu_apicv_active(vcpu)) {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx->osnet_msr_bitmap_longmode_x2apic_apicv;
+			else
+				msr_bitmap = vmx->osnet_msr_bitmap_legacy_x2apic_apicv;
+		} else {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx->osnet_msr_bitmap_longmode_x2apic;
+                        else
+				msr_bitmap = vmx->osnet_msr_bitmap_legacy_x2apic;
+		}
+	} else {
+		if (is_long_mode(vcpu))
+			msr_bitmap = vmx->osnet_msr_bitmap_longmode;
+                else
+			msr_bitmap = vmx->osnet_msr_bitmap_legacy;
+	}
+
+	vmcs_write64(MSR_BITMAP, __pa(msr_bitmap));
+}
+#else
 static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 {
 	unsigned long *msr_bitmap;
@@ -2582,18 +2627,19 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 		} else {
 			if (is_long_mode(vcpu))
 				msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
-			else
+                        else
 				msr_bitmap = vmx_msr_bitmap_legacy_x2apic;
 		}
 	} else {
 		if (is_long_mode(vcpu))
 			msr_bitmap = vmx_msr_bitmap_longmode;
-		else
+                else
 			msr_bitmap = vmx_msr_bitmap_legacy;
 	}
 
 	vmcs_write64(MSR_BITMAP, __pa(msr_bitmap));
 }
+#endif
 
 /*
  * Set up the vmcs to automatically save and restore system
@@ -4961,6 +5007,28 @@ static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_activ
 	}
 }
 
+#if OSNET_MVM
+static void osnet_vmx_disable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
+                                                        int type, bool apicv_active)
+{
+        struct vcpu_vmx *vmx;
+
+        vmx = to_vmx(vcpu);
+
+	if (apicv_active) {
+		__vmx_disable_intercept_for_msr(vmx->osnet_msr_bitmap_legacy_x2apic_apicv,
+				                msr, type);
+		__vmx_disable_intercept_for_msr(vmx->osnet_msr_bitmap_longmode_x2apic_apicv,
+				                msr, type);
+	} else {
+		__vmx_disable_intercept_for_msr(vmx->osnet_msr_bitmap_legacy_x2apic,
+				                msr, type);
+		__vmx_disable_intercept_for_msr(vmx->osnet_msr_bitmap_longmode_x2apic,
+				                msr, type);
+	}
+}
+#endif
+
 static bool vmx_get_enable_apicv(void)
 {
 	return enable_apicv;
@@ -5295,8 +5363,15 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
 		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
 	}
+
+#if OSNET_MVM
+	if (cpu_has_vmx_msr_bitmap()) {
+		vmcs_write64(MSR_BITMAP, __pa(vmx->osnet_msr_bitmap_legacy));
+        }
+#else
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_legacy));
+#endif
 
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
@@ -9264,9 +9339,43 @@ static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
        vcpu_put(vcpu);
 }
 
+//static void osnet_vmx_free_pid(struct kvm_vcpu *vcpu)
+//{
+//        unsigned int i;
+//        int vcpuid;
+//        struct kvm *kvm;
+//        struct osnet_pid_pte *entry;
+//
+//        vcpuid = vcpu->vcpu_id;
+//        kvm = vcpu->kvm;
+//        i = kvm->osnet_pid.hash[vcpuid];
+//        entry = &kvm->osnet_pid.pid_pte[i];
+//        free_page(entry->pid);
+//}
+
+#if OSNET_MVM
+static void osnet_vmx_free_msr_bitmap(struct kvm_vcpu *vcpu)
+{
+        struct vcpu_vmx *vmx;
+
+        vmx = to_vmx(vcpu);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy_x2apic);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy_x2apic_apicv);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode_x2apic);
+        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode_x2apic_apicv);
+}
+#endif
+
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+#if OSNET_MVM
+        //osnet_vmx_free_pid(vcpu);
+        osnet_vmx_free_msr_bitmap(vcpu);
+#endif
 
 	if (enable_pml)
 		vmx_destroy_pml_buffer(vmx);
@@ -9294,6 +9403,25 @@ static void osnet_vmx_init_pid(struct kvm *kvm, struct vcpu_vmx *vmx,
 }
 #endif
 
+#if OSNET_MVM
+static void osnet_vmx_init_msr_bitmap(struct vcpu_vmx *vmx)
+{
+        vmx->osnet_msr_bitmap_legacy = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+        vmx->osnet_msr_bitmap_legacy_x2apic = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+        vmx->osnet_msr_bitmap_legacy_x2apic_apicv = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+        vmx->osnet_msr_bitmap_longmode = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+        vmx->osnet_msr_bitmap_longmode_x2apic = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+        vmx->osnet_msr_bitmap_longmode_x2apic_apicv = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+
+        memcpy(vmx->osnet_msr_bitmap_legacy, vmx_msr_bitmap_legacy, PAGE_SIZE);
+        memcpy(vmx->osnet_msr_bitmap_legacy_x2apic, vmx_msr_bitmap_legacy_x2apic, PAGE_SIZE);
+        memcpy(vmx->osnet_msr_bitmap_legacy_x2apic_apicv, vmx_msr_bitmap_legacy_x2apic_apicv, PAGE_SIZE);
+        memcpy(vmx->osnet_msr_bitmap_longmode, vmx_msr_bitmap_longmode, PAGE_SIZE);
+        memcpy(vmx->osnet_msr_bitmap_longmode_x2apic, vmx_msr_bitmap_longmode_x2apic, PAGE_SIZE);
+        memcpy(vmx->osnet_msr_bitmap_longmode_x2apic_apicv, vmx_msr_bitmap_longmode_x2apic_apicv, PAGE_SIZE);
+}
+#endif
+
 static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 {
 	int err;
@@ -9304,6 +9432,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		return ERR_PTR(-ENOMEM);
 #if OSNET_DTID_PI_DESC
         osnet_vmx_init_pid(kvm, vmx, id);
+#endif
+
+#if OSNET_MVM
+        osnet_vmx_init_msr_bitmap(vmx);
 #endif
 	vmx->vpid = allocate_vpid();
 
@@ -11629,6 +11761,27 @@ static void osnet_vmx_enable_intercept_msr_x2apic(u32 msr, int type,
 }
 #endif
 
+#if OSNET_MVM
+static void osnet_vmx_enable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
+                                                       int type, bool apicv_active)
+{
+        struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+        if (apicv_active) {
+                __osnet_vmx_enable_intercept_for_msr(
+                                vmx->osnet_msr_bitmap_legacy_x2apic_apicv, msr, type);
+                __osnet_vmx_enable_intercept_for_msr(
+                                vmx->osnet_msr_bitmap_longmode_x2apic_apicv, msr, type);
+        }
+        else {
+                __osnet_vmx_enable_intercept_for_msr(
+                                vmx_msr_bitmap_legacy_x2apic, msr, type);
+                __osnet_vmx_enable_intercept_for_msr(
+                                vmx_msr_bitmap_longmode_x2apic, msr, type);
+        }
+}
+#endif
+
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -11772,6 +11925,11 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 #if OSNET_CONFIGURE_MSR_BITMAP
         .disable_intercept_msr_x2apic = vmx_disable_intercept_msr_x2apic,
         .enable_intercept_msr_x2apic = osnet_vmx_enable_intercept_msr_x2apic,
+#endif
+
+#if OSNET_MVM
+        .disable_intercept_vcpu_msr_x2apic = osnet_vmx_disable_intercept_vcpu_msr_x2apic,
+        .enable_intercept_vcpu_msr_x2apic = osnet_vmx_enable_intercept_vcpu_msr_x2apic,
 #endif
 };
 
