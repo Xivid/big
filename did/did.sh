@@ -37,7 +37,7 @@ enable_did()
 
         for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_setup_dtid; done
         ./run_did set_apic_ipi
-        ./run_did hc_disable_intercept_wrmsr_icr
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_disable_intercept_wrmsr_icr; done
         for i in `seq 0 $cpus`; do taskset -c 0 ./run_did send_ipi $i 0xef; done
 }
 
@@ -46,7 +46,7 @@ disable_did()
         local ncpus=$(nproc --all)
         local cpus=$((ncpus - 1))
 
-        ./run_did hc_enable_intercept_wrmsr_icr
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_enable_intercept_wrmsr_icr; done
         ./run_did restore_apic_ipi
         for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_restore_dtid; done
         for i in `seq 0 $cpus`; do wrmsr -p $i 0x838 0x616d; done
