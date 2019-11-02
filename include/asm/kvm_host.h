@@ -37,12 +37,12 @@
 
 /* OSNET */
 #include "../asm/osnet.h"
+/* OSNET-END*/
 
-#if OSNET_DTID_HYPERCALL_MAP_PID
+#if OSNET_MVM
 unsigned long osnet_find_spte(struct kvm_vcpu *vcpu, gfn_t gfn);
 bool osnet_spt_walk(struct kvm_vcpu *vcpu, gfn_t gfn);
 #endif
-/* OSNET-END*/
 
 #define KVM_MAX_VCPUS 288
 #define KVM_SOFT_MAX_VCPUS 240
@@ -1039,7 +1039,7 @@ struct kvm_x86_ops {
 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
-#if OSNET_CONFIGURE_VMCS
+#if OSNET_MVM
         u32 (*get_pin_based_exec_ctrl)(struct kvm_vcpu *vcpu);
         u32 (*get_cpu_exec_ctrl)(struct kvm_vcpu *vcpu);
         u32 (*get_secondary_exec_ctrl)(struct kvm_vcpu *vcpu);
@@ -1049,16 +1049,10 @@ struct kvm_x86_ops {
         void (*vmcs_write64)(unsigned long field, u64 value);
         void (*dump_vmcs)(void);
         void (*update_pid)(struct kvm_vcpu *vcpu, unsigned long pid);
-#endif
-
-#if OSNET_CONFIGURE_MSR_BITMAP
         void (*disable_intercept_msr_x2apic)(u32 msr, int type,
                                              bool apicv_active);
         void (*enable_intercept_msr_x2apic)(u32 msr, int type,
                                             bool apicv_active);
-#endif
-
-#if OSNET_MVM
         void (*disable_intercept_vcpu_msr_x2apic)(struct kvm_vcpu *vcpu, u32 msr,
                                                   int type, bool apicv_active);
         void (*enable_intercept_vcpu_msr_x2apic)(struct kvm_vcpu *vcpu, u32 msr,

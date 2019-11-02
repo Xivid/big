@@ -41,7 +41,9 @@ cscope:
 	cscope -bqk -R
 	ctags -R
 
-.PHONY: clean clean_scope
+.PHONY: clean cclean
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+
+cclean:
 	rm cscope* tags

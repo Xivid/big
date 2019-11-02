@@ -2595,7 +2595,7 @@ done:
 	return ret;
 }
 
-#if OSNET_DTID_HYPERCALL_MAP_PID
+#if OSNET_MVM
 unsigned long osnet_find_spte(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
         struct kvm_shadow_walk_iterator iterator;

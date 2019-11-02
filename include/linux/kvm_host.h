@@ -434,7 +434,7 @@ struct kvm {
 	struct list_head devices;
 	struct dentry *debugfs_dentry;
 	struct kvm_stat_data **debugfs_stat_data;
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         struct osnet_pi_desc osnet_pid;
 #endif
 

@@ -6119,7 +6119,7 @@ void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
 #include "../include/asm/osnet.h"
 /* OSNET-END */
 
-#if OSNET_DTID_HYPERCALL_MAP_PID
+#if OSNET_MVM
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <linux/mm.h>
@@ -6361,9 +6361,7 @@ static bool hypercall_page_walk(struct kvm_vcpu *vcpu, unsigned long gpa)
 
         return true;
 }
-#endif
 
-#if OSNET_SET_X2APIC_ID
 static int osnet_get_x2apic_id(void)
 {
         return per_cpu(x86_cpu_to_apicid, smp_processor_id());
@@ -6390,9 +6388,7 @@ static void osnet_restore_x2apic_id(struct kvm_vcpu *vcpu)
 
         pr_info("vcpu(%d) x2apic id: 0x%x\n", vcpu->vcpu_id, apicid);
 }
-#endif
 
-#if OSNET_SETUP_DID
 #include <asm/vmx.h>
 #include <linux/clockchips.h>
 
@@ -6431,61 +6427,6 @@ static void osnet_dump_vmcs(void)
         pr_err("io bitmap b high: 0x%016llx\n", io_bitmap_b_high);
 }
 
-static void osnet_set_timer_msr_bitmap(struct kvm_vcpu *vcpu, bool enable)
-{
-        u32 msr;
-        bool apicv_active = vcpu->arch.apic && vcpu->arch.apicv_active;
-
-        if (enable) {
-                msr = APIC_BASE_MSR + (APIC_TMICT >> 4);
-                kvm_x86_ops->enable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                         apicv_active);
-
-                msr = APIC_BASE_MSR + (APIC_TMCCT >> 4);
-                kvm_x86_ops->enable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_R,
-                                                         apicv_active);
-                msr = APIC_BASE_MSR + (APIC_TDCR >> 4);
-                kvm_x86_ops->enable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                         apicv_active);
-        } else {
-                msr = APIC_BASE_MSR + (APIC_TMICT >> 4);
-                kvm_x86_ops->disable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                          apicv_active);
-
-                msr = APIC_BASE_MSR + (APIC_TMCCT >> 4);
-                kvm_x86_ops->disable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_R,
-                                                          apicv_active);
-                msr = APIC_BASE_MSR + (APIC_TDCR >> 4);
-                kvm_x86_ops->disable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                          apicv_active);
-        }
-}
-
-static void osnet_set_icr_msr_bitmap(struct kvm_vcpu *vcpu, bool enable)
-{
-        u32 msr;
-        bool apicv_active = vcpu->arch.apic && vcpu->arch.apicv_active;
-
-        if (enable) {
-                msr = APIC_BASE_MSR + (APIC_ICR >> 4);
-                kvm_x86_ops->enable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                         apicv_active);
-
-                //msr = APIC_BASE_MSR + (APIC_ICR2 >> 4);
-                //kvm_x86_ops->enable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                //                                         apicv_active);
-        } else {
-                msr = APIC_BASE_MSR + (APIC_ICR >> 4);
-                kvm_x86_ops->disable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                                                          apicv_active);
-
-                //msr = APIC_BASE_MSR + (APIC_ICR2 >> 4);
-                //kvm_x86_ops->disable_intercept_msr_x2apic(msr, OSNET_MSR_TYPE_W,
-                //                                         apicv_active);
-        }
-}
-
-#if OSNET_MVM
 static void osnet_set_timer_vcpu_msr_bitmap(struct kvm_vcpu *vcpu, bool enable)
 {
         u32 msr;
@@ -6539,7 +6480,6 @@ static void osnet_set_icr_vcpu_msr_bitmap(struct kvm_vcpu *vcpu, bool enable)
                 //                                         apicv_active);
         }
 }
-#endif
 
 static void osnet_set_lapic(bool oneshot, bool timer_vector, u32 val)
 {
@@ -6588,11 +6528,7 @@ static unsigned long osnet_setup_dtid(struct kvm_vcpu *vcpu,
         pr_info("vcpu(%d) maps pid(%d)\n", vcpu->vcpu_id, current->pid);
 
         osnet_set_cpu_exec_ctrl(vcpu, false);
-#if OSNET_MVM
         osnet_set_timer_vcpu_msr_bitmap(vcpu, false);
-#else
-        osnet_set_timer_msr_bitmap(vcpu, false);
-#endif
         osnet_set_lapic(false, false, 0x616d);
 
         return ret;
@@ -6607,11 +6543,7 @@ static unsigned long osnet_restore_dtid(struct kvm_vcpu *vcpu,
         pr_info("vcpu(%d) unmaps pid(%d)\n", vcpu->vcpu_id, current->pid);
 
         osnet_set_cpu_exec_ctrl(vcpu, true);
-#if OSNET_MVM
         osnet_set_timer_vcpu_msr_bitmap(vcpu, true);
-#else
-        osnet_set_timer_msr_bitmap(vcpu, true);
-#endif
         osnet_set_lapic(true, true, 0x616d);
 
         return ret;
@@ -6698,15 +6630,13 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		kvm_pv_kick_cpu_op(vcpu->kvm, a0, a1);
 		ret = 0;
                 break;
-#if OSNET_GET_CLOCKEVENT_FACTOR
+#if OSNET_MVM
 	case KVM_HC_GET_CLOCKEVENT_MULT:
 		ret = osnet_get_clockevent_factor("mult");
                 break;
 	case KVM_HC_GET_CLOCKEVENT_SHIFT:
 		ret = osnet_get_clockevent_factor("shift");
                 break;
-#endif
-#if OSNET_SET_X2APIC_ID
         /* TODO: remove */
         case KVM_HC_GET_X2APIC_ID:
                 ret = osnet_get_x2apic_id();
@@ -6719,8 +6649,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
                 osnet_restore_x2apic_id(vcpu);
                 ret = 0;
                 break;
-#endif
-#if OSNET_CONFIGURE_VMCS
         case KVM_HC_SET_CPU_EXEC_VMCS:
                 osnet_set_cpu_exec_ctrl(vcpu, false);
                 ret = 0;
@@ -6733,28 +6661,16 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
                 osnet_dump_vmcs();
                 ret = 0;
                 break;
-#endif
-#if OSNET_CONFIGURE_MSR_BITMAP
         case KVM_HC_DISABLE_INTERCEPT_WRMSR_ICR:
-#if OSNET_MVM
                 osnet_set_icr_vcpu_msr_bitmap(vcpu, false);
-#else
-                osnet_set_icr_msr_bitmap(vcpu, false);
-#endif
                 pr_info("disable intercept wrmsr icr\n");
                 ret = 0;
                 break;
         case KVM_HC_ENABLE_INTERCEPT_WRMSR_ICR:
-#if OSNET_MVM
                 osnet_set_icr_vcpu_msr_bitmap(vcpu, true);
-#else
-                osnet_set_icr_msr_bitmap(vcpu, true);
-#endif
                 pr_info("enable intercept wrmsr icr\n");
                 ret = 0;
                 break;
-#endif
-#if OSNET_SETUP_DID
         case KVM_HC_SETUP_DTID:
                 ret = osnet_setup_dtid(vcpu, a0);
                 break;
@@ -6766,8 +6682,6 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
                 osnet_print_tid_cpumap(vcpu);
                 ret = 0;
                 break;
-#endif
-#if OSNET_DTID_HYPERCALL_MAP_PID
         case KVM_HC_PAGE_WALK:
                 ret = hypercall_page_walk(vcpu, a0);
                 break;

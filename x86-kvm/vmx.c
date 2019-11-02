@@ -630,20 +630,18 @@ struct vcpu_vmx {
 	u32 exit_reason;
 
 	/* Posted interrupt descriptor */
-#if OSNET_DTID_PI_DESC
-        struct pi_desc *pi_desc;
-#else
-        struct pi_desc pi_desc;
-#endif
-
 #if OSNET_MVM
+        struct pi_desc *pi_desc;
         unsigned long *osnet_msr_bitmap_legacy;
         unsigned long *osnet_msr_bitmap_legacy_x2apic;
         unsigned long *osnet_msr_bitmap_legacy_x2apic_apicv;
         unsigned long *osnet_msr_bitmap_longmode;
         unsigned long *osnet_msr_bitmap_longmode_x2apic;
         unsigned long *osnet_msr_bitmap_longmode_x2apic_apicv;
+#else
+        struct pi_desc pi_desc;
 #endif
+
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
 
@@ -689,7 +687,7 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 
 static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 {
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         return to_vmx(vcpu)->pi_desc;
 #else
         return &(to_vmx(vcpu)->pi_desc);
@@ -5089,7 +5087,7 @@ static inline bool kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu)
 		 * case when 'SN' is set currently, warning if
 		 * 'SN' is set.
 		 */
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
                 WARN_ON_ONCE(pi_test_sn(vmx->pi_desc));
 #else
                 WARN_ON_ONCE(pi_test_sn(&vmx->pi_desc));
@@ -5136,7 +5134,7 @@ static void vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
 	r = vmx_deliver_nested_posted_interrupt(vcpu, vector);
 	if (!r)
 		return;
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         if (pi_test_and_set_pir(vector, vmx->pi_desc))
                 return;
 
@@ -5155,7 +5153,7 @@ static void vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
 static void vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         if (!pi_test_on(vmx->pi_desc))
                 return;
 
@@ -5395,7 +5393,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write16(GUEST_INTR_STATUS, 0);
 
 		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
                 vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((vmx->pi_desc)));
 #else
                 vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((&vmx->pi_desc)));
@@ -5547,7 +5545,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	}
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         if (kvm_vcpu_apicv_active(vcpu))
                 memset(vmx->pi_desc, 0, sizeof(struct pi_desc));
 #else
@@ -9339,20 +9337,6 @@ static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
        vcpu_put(vcpu);
 }
 
-//static void osnet_vmx_free_pid(struct kvm_vcpu *vcpu)
-//{
-//        unsigned int i;
-//        int vcpuid;
-//        struct kvm *kvm;
-//        struct osnet_pid_pte *entry;
-//
-//        vcpuid = vcpu->vcpu_id;
-//        kvm = vcpu->kvm;
-//        i = kvm->osnet_pid.hash[vcpuid];
-//        entry = &kvm->osnet_pid.pid_pte[i];
-//        free_page(entry->pid);
-//}
-
 #if OSNET_MVM
 static void osnet_vmx_free_msr_bitmap(struct kvm_vcpu *vcpu)
 {
@@ -9373,7 +9357,6 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 #if OSNET_MVM
-        //osnet_vmx_free_pid(vcpu);
         osnet_vmx_free_msr_bitmap(vcpu);
 #endif
 
@@ -9388,7 +9371,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 	kmem_cache_free(kvm_vcpu_cache, vmx);
 }
 
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
 static void osnet_vmx_init_pid(struct kvm *kvm, struct vcpu_vmx *vmx,
                                unsigned int id)
 {
@@ -9401,9 +9384,7 @@ static void osnet_vmx_init_pid(struct kvm *kvm, struct vcpu_vmx *vmx,
         kvm->osnet_pid.hash[id] = i;
         kvm->osnet_pid.size++;
 }
-#endif
 
-#if OSNET_MVM
 static void osnet_vmx_init_msr_bitmap(struct vcpu_vmx *vmx)
 {
         vmx->osnet_msr_bitmap_legacy = (unsigned long *)get_zeroed_page(GFP_KERNEL);
@@ -9430,11 +9411,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	if (!vmx)
 		return ERR_PTR(-ENOMEM);
-#if OSNET_DTID_PI_DESC
-        osnet_vmx_init_pid(kvm, vmx, id);
-#endif
-
 #if OSNET_MVM
+        osnet_vmx_init_pid(kvm, vmx, id);
         osnet_vmx_init_msr_bitmap(vmx);
 #endif
 	vmx->vpid = allocate_vpid();
@@ -11687,7 +11665,7 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEATURE_CONTROL_LMCE;
 }
 
-#if OSNET_CONFIGURE_VMCS
+#if OSNET_MVM
 static u32 osnet_get_vmx_pin_based_exec_ctrl(struct kvm_vcpu *vcpu)
 {
         struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -11711,9 +11689,7 @@ static void osnet_update_pid(struct kvm_vcpu *vcpu, unsigned long pid)
         struct vcpu_vmx *vmx = to_vmx(vcpu);
         vmx->pi_desc = (struct pi_desc*) pid;
 }
-#endif
 
-#if OSNET_CONFIGURE_MSR_BITMAP
 static void __osnet_vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
                                                  u32 msr, int type)
 {
@@ -11759,9 +11735,7 @@ static void osnet_vmx_enable_intercept_msr_x2apic(u32 msr, int type,
                                 vmx_msr_bitmap_longmode_x2apic, msr, type);
         }
 }
-#endif
 
-#if OSNET_MVM
 static void osnet_vmx_enable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
                                                        int type, bool apicv_active)
 {
@@ -11910,7 +11884,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 #endif
 
 	.setup_mce = vmx_setup_mce,
-#if OSNET_CONFIGURE_VMCS
+#if OSNET_MVM
         .get_pin_based_exec_ctrl = osnet_get_vmx_pin_based_exec_ctrl,
         .get_cpu_exec_ctrl = osnet_get_vmx_cpu_exec_ctrl,
         .get_secondary_exec_ctrl = osnet_get_vmx_secondary_exec_ctrl,
@@ -11920,14 +11894,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
         .vmcs_write64 = vmcs_write64,
         .dump_vmcs = dump_vmcs,
         .update_pid = osnet_update_pid,
-#endif
-
-#if OSNET_CONFIGURE_MSR_BITMAP
         .disable_intercept_msr_x2apic = vmx_disable_intercept_msr_x2apic,
         .enable_intercept_msr_x2apic = osnet_vmx_enable_intercept_msr_x2apic,
-#endif
-
-#if OSNET_MVM
         .disable_intercept_vcpu_msr_x2apic = osnet_vmx_disable_intercept_vcpu_msr_x2apic,
         .enable_intercept_vcpu_msr_x2apic = osnet_vmx_enable_intercept_vcpu_msr_x2apic,
 #endif

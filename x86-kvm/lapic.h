@@ -9,7 +9,7 @@
 /* OSNET */
 //#include <asm/osnet.h>
 #include "../include/asm/osnet.h"
-#if OSNET_SET_X2APIC_ID
+#if OSNET_MVM
 void osnet_kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id);
 #endif
 /* OSNET-END */

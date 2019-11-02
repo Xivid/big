@@ -745,7 +745,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 		kvm_free_memslots(kvm, kvm->memslots[i]);
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
-#if OSNET_DTID_PI_DESC
+#if OSNET_MVM
         for (i = 0; i < kvm->osnet_pid.size; i++) {
                 struct osnet_pid_pte *entry;
                 entry = &kvm->osnet_pid.pid_pte[i];
