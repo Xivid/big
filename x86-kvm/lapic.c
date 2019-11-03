@@ -266,13 +266,17 @@ void osnet_kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
         kvm_apic_set_x2apic_id(apic, id);
 }
 
+/* The thread running this VCPU may be changed, especially in
+ * the case of migration. */
 static void osnet_kvm_cpumap_set_tid(struct kvm_vcpu *vcpu)
 {
         int vcpuid;
+        struct pid *pid;
         struct task_struct *task;
         struct osnet_tid_cpumap *tid_cpumap;
 
-        task = pid_task(vcpu->pid, PIDTYPE_PID);
+        pid = get_task_pid(current, PIDTYPE_PID);
+        task = get_pid_task(pid, PIDTYPE_PID);
         vcpuid = vcpu->vcpu_id;
         tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
         tid_cpumap->tids[vcpuid] = task->pid;
