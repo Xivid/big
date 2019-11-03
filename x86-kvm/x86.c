@@ -6129,15 +6129,13 @@ void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
 
 static struct osnet_pid_pte *osnet_get_pid_pte(struct kvm_vcpu *vcpu)
 {
-        int i;
         int id;
         struct kvm *kvm;
         struct osnet_pid_pte *entry;
 
         id = vcpu->vcpu_id;
         kvm = vcpu->kvm;
-        i = kvm->osnet_pid.hash[id];
-        entry = &kvm->osnet_pid.pid_pte[i];
+        entry = &kvm->osnet_pid.pid_pte[id];
 
         return entry;
 }

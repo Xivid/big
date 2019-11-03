@@ -9375,13 +9375,11 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 static void osnet_vmx_init_pid(struct kvm *kvm, struct vcpu_vmx *vmx,
                                unsigned int id)
 {
-        unsigned int i = kvm->osnet_pid.size;
         unsigned long pid = get_zeroed_page(GFP_KERNEL);
-        struct osnet_pid_pte *entry = &kvm->osnet_pid.pid_pte[i];
+        struct osnet_pid_pte *entry = &kvm->osnet_pid.pid_pte[id];
 
         vmx->pi_desc = (struct pi_desc*) pid;
         entry->pid = pid;
-        kvm->osnet_pid.hash[id] = i;
         kvm->osnet_pid.size++;
 }
 
