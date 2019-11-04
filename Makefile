@@ -18,7 +18,7 @@ big-objs := $(bonding-objs) $(did-objs)
 
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
-all: modules cscope run_did
+all: modules run_did
 
 modules:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
@@ -36,8 +36,10 @@ cscope:
 	cscope -bqk -R
 	ctags -R
 
-.PHONY: clean
+.PHONY: clean cclean
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 	rm $(DID_DIR)/run_did
+
+cclean:
 	rm cscope* tags
