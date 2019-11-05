@@ -6678,6 +6678,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
         case KVM_HC_TEST:
                 osnet_test(vcpu, a0);
                 osnet_print_tid_cpumap(vcpu);
+                kvm_x86_ops->print_mvm(vcpu);
                 ret = 0;
                 break;
         case KVM_HC_PAGE_WALK:

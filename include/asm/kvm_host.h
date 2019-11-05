@@ -1057,6 +1057,7 @@ struct kvm_x86_ops {
                                                   int type, bool apicv_active);
         void (*enable_intercept_vcpu_msr_x2apic)(struct kvm_vcpu *vcpu, u32 msr,
                                                  int type, bool apicv_active);
+        void (*print_mvm)(struct kvm_vcpu *vcpu);
 #endif
 };
 

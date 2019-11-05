@@ -11752,6 +11752,40 @@ static void osnet_vmx_enable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u3
                                 vmx_msr_bitmap_longmode_x2apic, msr, type);
         }
 }
+
+static void osnet_print_mvm(struct kvm_vcpu *vcpu)
+{
+        pid_t pid;
+        struct vcpu_vmx *vmx;
+        struct kvm_lapic *apic;
+        int vcpuid;
+        int pcpu;
+        u32 vapicid;
+        u32 vapicldr;
+        u64 bitmap_paddr;
+
+        pid = current->pid;
+        vmx = to_vmx(vcpu);
+        apic = vcpu->arch.apic;
+        vcpuid = vcpu->vcpu_id;
+        pcpu = vcpu->cpu;
+        vapicid = *((u32 *)(apic->regs + APIC_ID));
+        vapicldr = *((u32 *)(apic->regs + APIC_LDR));
+        bitmap_paddr = vmcs_read64(MSR_BITMAP);
+
+        pr_info("TID: %d\n", pid);
+        pr_info("VCPUID: %d\n", vcpuid);
+        pr_info("PCPU: %d\n", pcpu);
+        pr_info("MSR_BITMAP: 0x%llx\n", bitmap_paddr);
+        pr_info("MSR_BITMAP_LEGACY: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy));
+        pr_info("MSR_BITMAP_LEGACY_X2APIC: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy_x2apic));
+        pr_info("MSR_BITMAP_LEGACY_X2APIC_APICV: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy_x2apic_apicv));
+        pr_info("MSR_BITMAP_LONGMODE: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode));
+        pr_info("MSR_BITMAP_LONGMODE_x2APIC: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode_x2apic));
+        pr_info("MSR_BITMAP_LONGMODE_x2APIC_APICV: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode_x2apic_apicv));
+        pr_info("VAPICID: 0x%x\n", vapicid);
+        pr_info("VAPICLDR: 0x%x\n", vapicldr);
+}
 #endif
 
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
@@ -11896,6 +11930,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
         .enable_intercept_msr_x2apic = osnet_vmx_enable_intercept_msr_x2apic,
         .disable_intercept_vcpu_msr_x2apic = osnet_vmx_disable_intercept_vcpu_msr_x2apic,
         .enable_intercept_vcpu_msr_x2apic = osnet_vmx_enable_intercept_vcpu_msr_x2apic,
+        .print_mvm = osnet_print_mvm,
 #endif
 };
 

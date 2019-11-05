@@ -271,15 +271,11 @@ void osnet_kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 static void osnet_kvm_cpumap_set_tid(struct kvm_vcpu *vcpu)
 {
         int vcpuid;
-        struct pid *pid;
-        struct task_struct *task;
         struct osnet_tid_cpumap *tid_cpumap;
 
-        pid = get_task_pid(current, PIDTYPE_PID);
-        task = get_pid_task(pid, PIDTYPE_PID);
         vcpuid = vcpu->vcpu_id;
         tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
-        tid_cpumap->tids[vcpuid] = task->pid;
+        tid_cpumap->tids[vcpuid] = current->pid;
 }
 
 static void osnet_kvm_cpumap_set_x2apic_id(struct kvm_vcpu *vcpu)
