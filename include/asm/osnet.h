@@ -12,6 +12,7 @@
 #define OSNET_FALSE_VALUE -1
 #define OSNET_KVMIO 0xBE
 #define OSNET_KVM_SET_CPUMAP _IOW(OSNET_KVMIO, 0x00, struct osnet_cpumap)
+#define OSNET_DEBUG_TRACE 1
 
 struct osnet_pid_pte {
         /* vaddr of host's pid */

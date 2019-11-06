@@ -9276,6 +9276,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
 
+#if OSNET_DEBUG_TRACE
+        trace_printk("%d\n", vmx->exit_reason);
+#endif
+
 	/*
 	 * eager fpu is enabled if PKEY is supported and CR4 is switched
 	 * back on host, so it is safe to read guest PKRU from current
