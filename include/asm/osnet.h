@@ -4,6 +4,8 @@
 #include <linux/kvm_types.h>
 
 #define OSNET_MVM 1     /* multiple-vm hypervisor */
+
+#if OSNET_MVM
 #define OSNET_MAX_VCPU_ID 1024
 #define OSNET_OLD_PID_PROTECTION 0x063
 #define OSNET_NEW_PID_PROTECTION 0x167
@@ -12,7 +14,7 @@
 #define OSNET_FALSE_VALUE -1
 #define OSNET_KVMIO 0xBE
 #define OSNET_KVM_SET_CPUMAP _IOW(OSNET_KVMIO, 0x00, struct osnet_cpumap)
-#define OSNET_DEBUG_TRACE 1
+#define OSNET_DEBUG_TRACE 0
 
 struct osnet_pid_pte {
         /* vaddr of host's pid */
@@ -34,9 +36,9 @@ struct osnet_cpumap {
         char path[OSNET_STRING_LENGTH];
 };
 
-struct osnet_tid_cpumap {
-        int tids[OSNET_MAX_VCPU_ID];
-        struct osnet_cpumap cpumap;
-};
-
+//struct osnet_tid_cpumap {
+//        int tids[OSNET_MAX_VCPU_ID];
+//        struct osnet_cpumap cpumap;
+//};
+#endif  /* OSNET_MVM */
 #endif  /* _ASM_X86_OSNET_H */

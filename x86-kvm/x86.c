@@ -6496,25 +6496,12 @@ static void osnet_set_lapic(bool oneshot, bool timer_vector, u32 val)
         apic_write(APIC_TMICT, val);
 }
 
-static void osnet_print_tid_cpumap(const struct kvm_vcpu *vcpu)
+static void osnet_set_msr_bitmap(struct kvm_vcpu *vcpu, bool enable_private)
 {
-        const struct osnet_tid_cpumap *tid_cpumap;
-        const struct osnet_cpumap *cpumap;
-
-        tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
-        cpumap = &(tid_cpumap->cpumap);
-
-        pr_info("path: %s\n", cpumap->path);
-
-        for (int i = 0; i < OSNET_MAX_VCPU_ID; i++) {
-                if (cpumap->is_valid && cpumap->pcpus[i] != OSNET_FALSE_VALUE)
-                        pr_info("vcpu-tid-pcpu: %d\t%d\t%d\n",
-                                i, tid_cpumap->tids[i], cpumap->pcpus[i]);
-        }
-
-        pr_info("is_valid: %d\n", cpumap->is_valid);
-
-        pr_info("nvcpus: %d\n", cpumap->nvcpus);
+        if (enable_private)
+                kvm_x86_ops->set_msr_bitmap(vcpu);
+        else
+                kvm_x86_ops->restore_msr_bitmap(vcpu);
 }
 
 static unsigned long osnet_setup_dtid(struct kvm_vcpu *vcpu,
@@ -6526,6 +6513,7 @@ static unsigned long osnet_setup_dtid(struct kvm_vcpu *vcpu,
         pr_info("vcpu(%d) maps pid(%d)\n", vcpu->vcpu_id, current->pid);
 
         osnet_set_cpu_exec_ctrl(vcpu, false);
+        osnet_set_msr_bitmap(vcpu, true);
         osnet_set_timer_vcpu_msr_bitmap(vcpu, false);
         osnet_set_lapic(false, false, 0x616d);
 
@@ -6543,6 +6531,7 @@ static unsigned long osnet_restore_dtid(struct kvm_vcpu *vcpu,
         osnet_set_cpu_exec_ctrl(vcpu, true);
         osnet_set_timer_vcpu_msr_bitmap(vcpu, true);
         osnet_set_lapic(true, true, 0x616d);
+        osnet_set_msr_bitmap(vcpu, false);
 
         return ret;
 }
@@ -6585,6 +6574,11 @@ static void osnet_test(struct kvm_vcpu *vcpu, unsigned long arg)
         pr_info("gpa: 0x%lx\n", arg);
         pr_info("pfn: 0x%llx\n", pfn);
         pr_info("paddr: 0x%llx\n", virt_to_phys((void *)data));
+}
+
+static void osnet_print_mvm(struct kvm_vcpu *vcpu)
+{
+        kvm_x86_ops->print_mvm(vcpu);
 }
 #endif
 
@@ -6677,8 +6671,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
                 break;
         case KVM_HC_TEST:
                 osnet_test(vcpu, a0);
-                osnet_print_tid_cpumap(vcpu);
-                kvm_x86_ops->print_mvm(vcpu);
+                osnet_print_mvm(vcpu);
                 ret = 0;
                 break;
         case KVM_HC_PAGE_WALK:

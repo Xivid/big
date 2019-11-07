@@ -632,12 +632,7 @@ struct vcpu_vmx {
 	/* Posted interrupt descriptor */
 #if OSNET_MVM
         struct pi_desc *pi_desc;
-        unsigned long *osnet_msr_bitmap_legacy;
-        unsigned long *osnet_msr_bitmap_legacy_x2apic;
-        unsigned long *osnet_msr_bitmap_legacy_x2apic_apicv;
-        unsigned long *osnet_msr_bitmap_longmode;
-        unsigned long *osnet_msr_bitmap_longmode_x2apic;
-        unsigned long *osnet_msr_bitmap_longmode_x2apic_apicv;
+        unsigned long *msr_bitmap;
 #else
         struct pi_desc pi_desc;
 #endif
@@ -2574,40 +2569,6 @@ static void move_msr_up(struct vcpu_vmx *vmx, int from, int to)
 	vmx->guest_msrs[from] = tmp;
 }
 
-#if OSNET_MVM
-static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
-{
-        struct vcpu_vmx *vmx;
-	unsigned long *msr_bitmap;
-
-        vmx = to_vmx(vcpu);
-
-	if (is_guest_mode(vcpu))
-		msr_bitmap = to_vmx(vcpu)->nested.msr_bitmap;
-	else if (cpu_has_secondary_exec_ctrls() &&
-		 (vmcs_read32(SECONDARY_VM_EXEC_CONTROL) &
-		  SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
-		if (enable_apicv && kvm_vcpu_apicv_active(vcpu)) {
-			if (is_long_mode(vcpu))
-				msr_bitmap = vmx->osnet_msr_bitmap_longmode_x2apic_apicv;
-			else
-				msr_bitmap = vmx->osnet_msr_bitmap_legacy_x2apic_apicv;
-		} else {
-			if (is_long_mode(vcpu))
-				msr_bitmap = vmx->osnet_msr_bitmap_longmode_x2apic;
-                        else
-				msr_bitmap = vmx->osnet_msr_bitmap_legacy_x2apic;
-		}
-	} else {
-		if (is_long_mode(vcpu))
-			msr_bitmap = vmx->osnet_msr_bitmap_longmode;
-                else
-			msr_bitmap = vmx->osnet_msr_bitmap_legacy;
-	}
-
-	vmcs_write64(MSR_BITMAP, __pa(msr_bitmap));
-}
-#else
 static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 {
 	unsigned long *msr_bitmap;
@@ -2637,7 +2598,6 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 
 	vmcs_write64(MSR_BITMAP, __pa(msr_bitmap));
 }
-#endif
 
 /*
  * Set up the vmcs to automatically save and restore system
@@ -5005,7 +4965,16 @@ static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_activ
 	}
 }
 
-#if OSNET_MVM
+#if 1
+static void osnet_vmx_disable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
+							int type, bool apicv_active)
+{
+	struct vcpu_vmx *vmx;
+
+	vmx = to_vmx(vcpu);
+	__vmx_disable_intercept_for_msr(vmx->msr_bitmap, msr, type);
+}
+#else
 static void osnet_vmx_disable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
                                                         int type, bool apicv_active)
 {
@@ -5362,14 +5331,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
 	}
 
-#if OSNET_MVM
-	if (cpu_has_vmx_msr_bitmap()) {
-		vmcs_write64(MSR_BITMAP, __pa(vmx->osnet_msr_bitmap_legacy));
-        }
-#else
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_legacy));
-#endif
 
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
@@ -9347,12 +9310,7 @@ static void osnet_vmx_free_msr_bitmap(struct kvm_vcpu *vcpu)
         struct vcpu_vmx *vmx;
 
         vmx = to_vmx(vcpu);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy_x2apic);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_legacy_x2apic_apicv);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode_x2apic);
-        free_page((unsigned long)vmx->osnet_msr_bitmap_longmode_x2apic_apicv);
+        free_page((unsigned long)vmx->msr_bitmap);
 }
 #endif
 
@@ -9389,19 +9347,8 @@ static void osnet_vmx_init_pid(struct kvm *kvm, struct vcpu_vmx *vmx,
 
 static void osnet_vmx_init_msr_bitmap(struct vcpu_vmx *vmx)
 {
-        vmx->osnet_msr_bitmap_legacy = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-        vmx->osnet_msr_bitmap_legacy_x2apic = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-        vmx->osnet_msr_bitmap_legacy_x2apic_apicv = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-        vmx->osnet_msr_bitmap_longmode = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-        vmx->osnet_msr_bitmap_longmode_x2apic = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-        vmx->osnet_msr_bitmap_longmode_x2apic_apicv = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-
-        memcpy(vmx->osnet_msr_bitmap_legacy, vmx_msr_bitmap_legacy, PAGE_SIZE);
-        memcpy(vmx->osnet_msr_bitmap_legacy_x2apic, vmx_msr_bitmap_legacy_x2apic, PAGE_SIZE);
-        memcpy(vmx->osnet_msr_bitmap_legacy_x2apic_apicv, vmx_msr_bitmap_legacy_x2apic_apicv, PAGE_SIZE);
-        memcpy(vmx->osnet_msr_bitmap_longmode, vmx_msr_bitmap_longmode, PAGE_SIZE);
-        memcpy(vmx->osnet_msr_bitmap_longmode_x2apic, vmx_msr_bitmap_longmode_x2apic, PAGE_SIZE);
-        memcpy(vmx->osnet_msr_bitmap_longmode_x2apic_apicv, vmx_msr_bitmap_longmode_x2apic_apicv, PAGE_SIZE);
+        vmx->msr_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
+        memset(vmx->msr_bitmap, 0xff, PAGE_SIZE);
 }
 #endif
 
@@ -11739,22 +11686,12 @@ static void osnet_vmx_enable_intercept_msr_x2apic(u32 msr, int type,
 }
 
 static void osnet_vmx_enable_intercept_vcpu_msr_x2apic(struct kvm_vcpu *vcpu, u32 msr,
-                                                       int type, bool apicv_active)
+						       int type, bool apicv_active)
 {
-        struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-        if (apicv_active) {
-                __osnet_vmx_enable_intercept_for_msr(
-                                vmx->osnet_msr_bitmap_legacy_x2apic_apicv, msr, type);
-                __osnet_vmx_enable_intercept_for_msr(
-                                vmx->osnet_msr_bitmap_longmode_x2apic_apicv, msr, type);
-        }
-        else {
-                __osnet_vmx_enable_intercept_for_msr(
-                                vmx_msr_bitmap_legacy_x2apic, msr, type);
-                __osnet_vmx_enable_intercept_for_msr(
-                                vmx_msr_bitmap_longmode_x2apic, msr, type);
-        }
+	vmx = to_vmx(vcpu);
+	__osnet_vmx_enable_intercept_for_msr(vmx->msr_bitmap, msr, type);
 }
 
 static void osnet_print_mvm(struct kvm_vcpu *vcpu)
@@ -11767,6 +11704,7 @@ static void osnet_print_mvm(struct kvm_vcpu *vcpu)
         u32 vapicid;
         u32 vapicldr;
         u64 bitmap_paddr;
+        u64 vmcs_bitmap_paddr;
 
         pid = current->pid;
         vmx = to_vmx(vcpu);
@@ -11775,20 +11713,54 @@ static void osnet_print_mvm(struct kvm_vcpu *vcpu)
         pcpu = vcpu->cpu;
         vapicid = *((u32 *)(apic->regs + APIC_ID));
         vapicldr = *((u32 *)(apic->regs + APIC_LDR));
-        bitmap_paddr = vmcs_read64(MSR_BITMAP);
+        bitmap_paddr = __pa(vmx->msr_bitmap);
+        vmcs_bitmap_paddr = vmcs_read64(MSR_BITMAP);
 
         pr_info("TID: %d\n", pid);
         pr_info("VCPUID: %d\n", vcpuid);
         pr_info("PCPU: %d\n", pcpu);
         pr_info("MSR_BITMAP: 0x%llx\n", bitmap_paddr);
-        pr_info("MSR_BITMAP_LEGACY: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy));
-        pr_info("MSR_BITMAP_LEGACY_X2APIC: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy_x2apic));
-        pr_info("MSR_BITMAP_LEGACY_X2APIC_APICV: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_legacy_x2apic_apicv));
-        pr_info("MSR_BITMAP_LONGMODE: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode));
-        pr_info("MSR_BITMAP_LONGMODE_x2APIC: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode_x2apic));
-        pr_info("MSR_BITMAP_LONGMODE_x2APIC_APICV: 0x%lx\n", __pa(vmx->osnet_msr_bitmap_longmode_x2apic_apicv));
+        pr_info("VMCS_MSR_BITMAP: 0x%llx\n", vmcs_bitmap_paddr);
         pr_info("VAPICID: 0x%x\n", vapicid);
         pr_info("VAPICLDR: 0x%x\n", vapicldr);
+}
+
+static void osnet_vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx;
+	unsigned long *msr_bitmap;
+
+	if (is_guest_mode(vcpu))
+		msr_bitmap = to_vmx(vcpu)->nested.msr_bitmap;
+	else if (cpu_has_secondary_exec_ctrls() &&
+		 (vmcs_read32(SECONDARY_VM_EXEC_CONTROL) &
+		  SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
+		if (enable_apicv && kvm_vcpu_apicv_active(vcpu)) {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx_msr_bitmap_longmode_x2apic_apicv;
+			else
+				msr_bitmap = vmx_msr_bitmap_legacy_x2apic_apicv;
+		} else {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
+			else
+				msr_bitmap = vmx_msr_bitmap_legacy_x2apic;
+		}
+	} else {
+		if (is_long_mode(vcpu))
+			msr_bitmap = vmx_msr_bitmap_longmode;
+		else
+			msr_bitmap = vmx_msr_bitmap_legacy;
+	}
+
+	vmx = to_vmx(vcpu);
+	memcpy(vmx->msr_bitmap, msr_bitmap, PAGE_SIZE);
+	vmcs_write64(MSR_BITMAP, __pa(vmx->msr_bitmap));
+}
+
+static void osnet_vmx_restore_msr_bitmap(struct kvm_vcpu *vcpu)
+{
+	vmx_set_msr_bitmap(vcpu);
 }
 #endif
 
@@ -11935,6 +11907,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
         .disable_intercept_vcpu_msr_x2apic = osnet_vmx_disable_intercept_vcpu_msr_x2apic,
         .enable_intercept_vcpu_msr_x2apic = osnet_vmx_enable_intercept_vcpu_msr_x2apic,
         .print_mvm = osnet_print_mvm,
+        .set_msr_bitmap = osnet_vmx_set_msr_bitmap,
+        .restore_msr_bitmap = osnet_vmx_restore_msr_bitmap,
 #endif
 };
 

@@ -436,10 +436,7 @@ struct kvm {
 	struct kvm_stat_data **debugfs_stat_data;
 #if OSNET_MVM
         struct osnet_pi_desc osnet_pid;
-#endif
-
-#if OSNET_MVM
-        struct osnet_tid_cpumap osnet_tid_cpumap;
+        struct osnet_cpumap osnet_cpumap;
 #endif
 };
 

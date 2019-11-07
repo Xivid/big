@@ -2964,8 +2964,8 @@ static int osnet_kvm_ioctl_set_cpumap(struct kvm *kvm, const void __user *argp)
 {
         int ret;
 
-        ret = copy_from_user(&(kvm->osnet_tid_cpumap.cpumap), argp,
-                             sizeof(kvm->osnet_tid_cpumap.cpumap));
+        ret = copy_from_user(&(kvm->osnet_cpumap), argp,
+                             sizeof(kvm->osnet_cpumap));
         if (ret)
                 pr_err("bytes could not be copied: %d\n", ret);
 

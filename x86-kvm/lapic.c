@@ -266,18 +266,6 @@ void osnet_kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
         kvm_apic_set_x2apic_id(apic, id);
 }
 
-/* The thread running this VCPU may be changed, especially in
- * the case of migration. */
-static void osnet_kvm_cpumap_set_tid(struct kvm_vcpu *vcpu)
-{
-        int vcpuid;
-        struct osnet_tid_cpumap *tid_cpumap;
-
-        vcpuid = vcpu->vcpu_id;
-        tid_cpumap = &(vcpu->kvm->osnet_tid_cpumap);
-        tid_cpumap->tids[vcpuid] = current->pid;
-}
-
 static void osnet_kvm_cpumap_set_x2apic_id(struct kvm_vcpu *vcpu)
 {
         int vcpuid;
@@ -286,7 +274,7 @@ static void osnet_kvm_cpumap_set_x2apic_id(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic;
         struct osnet_cpumap *cpumap;
 
-        cpumap = &(vcpu->kvm->osnet_tid_cpumap.cpumap);
+        cpumap = &(vcpu->kvm->osnet_cpumap);
         vcpuid = vcpu->vcpu_id;
         pcpu = cpumap->pcpus[vcpuid];
         vapicid = per_cpu(x86_cpu_to_apicid, pcpu);
@@ -1850,7 +1838,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 
 #if OSNET_MVM
         struct osnet_cpumap *cpumap;
-        cpumap = &(vcpu->kvm->osnet_tid_cpumap.cpumap);
+        cpumap = &(vcpu->kvm->osnet_cpumap);
 #endif
 
 	if (!apic)
@@ -1878,12 +1866,10 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	if ((old_value ^ value) & X2APIC_ENABLE) {
 		if (value & X2APIC_ENABLE) {
 #if OSNET_MVM
-                        if (cpumap->is_valid) {
+                        if (cpumap->is_valid)
                                 osnet_kvm_cpumap_set_x2apic_id(vcpu);
-                                osnet_kvm_cpumap_set_tid(vcpu);
-                        } else {
+                        else
                                 kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
-                        }
 #else
                         kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
 #endif
