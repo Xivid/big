@@ -6221,8 +6221,8 @@ static int osnet_map_pid(struct kvm_vcpu *vcpu, unsigned long gpa)
         struct page *gpage;
         void *gpid;
         u64 pid_paddr;
-        typedef void (*func_t)(void);
-        func_t my_flush_tlb_current_task;
+        //typedef void (*func_t)(void);
+        //func_t my_flush_tlb_current_task;
         struct kvm *kvm;
 
         gfn = gpa_to_gfn(gpa);
@@ -6261,10 +6261,10 @@ static int osnet_map_pid(struct kvm_vcpu *vcpu, unsigned long gpa)
         mutex_unlock(&kvm->irq_lock);
         synchronize_srcu_expedited(&kvm->irq_srcu);
 
-        pr_info("***** flush tlb *****\n");
-        my_flush_tlb_current_task =
-                (func_t)kallsyms_lookup_name("flush_tlb_current_task");
-        my_flush_tlb_current_task();
+        //pr_info("***** flush tlb *****\n");
+        //my_flush_tlb_current_task =
+        //        (func_t)kallsyms_lookup_name("flush_tlb_current_task");
+        //my_flush_tlb_current_task();
 
         return 0;
 }
@@ -6279,8 +6279,8 @@ static int osnet_unmap_pid(struct kvm_vcpu *vcpu, unsigned long gpa)
         void *pid;
         struct page *page;
         void *gpid;
-        typedef void (*func_t)(void);
-        func_t my_flush_tlb_current_task;
+        //typedef void (*func_t)(void);
+        //func_t my_flush_tlb_current_task;
         struct kvm *kvm;
 
         gfn = gpa_to_gfn(gpa);
@@ -6310,10 +6310,10 @@ static int osnet_unmap_pid(struct kvm_vcpu *vcpu, unsigned long gpa)
         mutex_unlock(&kvm->irq_lock);
         synchronize_srcu_expedited(&kvm->irq_srcu);
 
-        pr_info("***** flush tlb *****\n");
-        my_flush_tlb_current_task =
-                (func_t)kallsyms_lookup_name("flush_tlb_current_task");
-        my_flush_tlb_current_task();
+        //pr_info("***** flush tlb *****\n");
+        //my_flush_tlb_current_task =
+        //        (func_t)kallsyms_lookup_name("flush_tlb_current_task");
+        //my_flush_tlb_current_task();
 
         pr_info("***** unmap host-to-guest page *****\n");
         page = virt_to_page(gpid);
