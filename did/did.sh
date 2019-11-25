@@ -34,11 +34,19 @@ enable_did()
 {
         local ncpus=$(nproc --all)
         local cpus=$((ncpus - 1))
+        
+        # use the physical x2APIC IDs
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_set_x2apic_id; done
 
+        # enable DTID
         for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_setup_dtid; done
-        ./run_did set_apic_ipi
-        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_disable_intercept_wrmsr_icr; done
         for i in `seq 0 $cpus`; do taskset -c 0 ./run_did send_ipi $i 0xef; done
+
+        # enable DIPI
+        ./run_did set_apic_ipi
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did set_x2apic_id; done
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_disable_intercept_wrmsr_icr; done
+
 }
 
 disable_did()
@@ -46,10 +54,17 @@ disable_did()
         local ncpus=$(nproc --all)
         local cpus=$((ncpus - 1))
 
+        # disable DIPI
         for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_enable_intercept_wrmsr_icr; done
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did restore_x2apic_id; done
         ./run_did restore_apic_ipi
+
+        # disable DTID
         for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_restore_dtid; done
         for i in `seq 0 $cpus`; do wrmsr -p $i 0x838 0x616d; done
+
+        # use the VCPU IDs as the x2APIC IDs
+        for i in `seq 0 $cpus`; do taskset -c $i ./run_did hc_restore_x2apic_id; done
 }
 
 if [ $op = "enable_did" ]; then

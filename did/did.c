@@ -658,7 +658,7 @@ static int hc_get_x2apic_id(void)
 static void hc_set_x2apic_id(void)
 {
         kvm_hypercall0(KVM_HC_SET_X2APIC_ID);
-        set_x2apic_id();
+        //set_x2apic_id();
         pr_info("hypercall to set up x2apic id\n");
 }
 
