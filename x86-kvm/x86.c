@@ -6369,10 +6369,16 @@ static void osnet_setup_x2apic_id(struct kvm_vcpu *vcpu)
 {
         int cpu;
         int apicid;
+        int vcpuid;
+        struct kvm_lapic *apic;
+        struct osnet_cpumap *cpumap;
 
-        cpu = smp_processor_id();
+        cpumap = &(vcpu->kvm->osnet_cpumap);
+        vcpuid = vcpu->vcpu_id;
+        cpu = cpumap->pcpus[vcpuid];
         apicid = per_cpu(x86_cpu_to_apicid, cpu);
-        osnet_kvm_apic_set_x2apic_id(vcpu->arch.apic, apicid);
+        apic = vcpu->arch.apic;
+        osnet_kvm_apic_set_x2apic_id(apic, apicid);
 
         pr_info("vcpu(%d) x2apic id: 0x%x\n", vcpu->vcpu_id, apicid);
 }
@@ -6381,7 +6387,7 @@ static void osnet_restore_x2apic_id(struct kvm_vcpu *vcpu)
 {
         int apicid;
 
-        apicid = per_cpu(x86_cpu_to_apicid, vcpu->vcpu_id);
+        apicid = vcpu->vcpu_id;
         osnet_kvm_apic_set_x2apic_id(vcpu->arch.apic, apicid);
 
         pr_info("vcpu(%d) x2apic id: 0x%x\n", vcpu->vcpu_id, apicid);
