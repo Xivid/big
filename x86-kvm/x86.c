@@ -6586,6 +6586,17 @@ static void osnet_print_mvm(struct kvm_vcpu *vcpu)
 {
         kvm_x86_ops->print_mvm(vcpu);
 }
+
+static void osnet_print_cpumap(struct kvm_vcpu *vcpu)
+{
+        struct osnet_cpumap *cpumap;
+
+        cpumap = &(vcpu->kvm->osnet_cpumap);
+        pr_info("path:  %s\n", cpumap->path);
+        pr_info("valid: %d\n", cpumap->is_valid);
+        for (unsigned int i = 0; i < cpumap->nvcpus; i++)
+                pr_info("vcpu-pcpu: %d\t%d\n", i, cpumap->pcpus[i]);
+}
 #endif
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
@@ -6678,6 +6689,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
         case KVM_HC_TEST:
                 osnet_test(vcpu, a0);
                 osnet_print_mvm(vcpu);
+                osnet_print_cpumap(vcpu);
                 ret = 0;
                 break;
         case KVM_HC_PAGE_WALK:
