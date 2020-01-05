@@ -4185,6 +4185,7 @@ void bond_setup(struct net_device *bond_dev)
 
 	/* Initialize the device entry points */
 	ether_setup(bond_dev);
+	bond_dev->max_mtu = ETH_MAX_MTU;
 	bond_dev->netdev_ops = &bond_netdev_ops;
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 
@@ -4736,7 +4737,6 @@ static struct pernet_operations bond_net_ops = {
 	.size = sizeof(struct bond_net),
 };
 
-/* OSNET */
 #if 0
 static int __init bonding_init(void)
 {
@@ -4792,7 +4792,6 @@ static void __exit bonding_exit(void)
 #endif
 }
 #endif
-/* OSNET-END */
 
 int __init bonding_init(void)
 {
@@ -4850,8 +4849,10 @@ void __exit bonding_exit(void)
 }
 EXPORT_SYMBOL_GPL(bonding_exit);
 
+/* OSNET */
 //module_init(bonding_init);
 //module_exit(bonding_exit);
+/* OSNET-END */
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION(DRV_DESCRIPTION ", v" DRV_VERSION);
