@@ -56,7 +56,7 @@ $ reboot
 # Install QEMU 4.1.0
 ```
 $ apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev flex bison libnfs-dev libiscsi-dev
-$ git clone git@github.com:tcheng8/qemu-4.1.0.git
+$ git clone git@github.com:osnetsvn/qemu-4.1.0.git
 $ cd qemu-4.1.0
 $ git checkout origin/mvm -b mvm
 $ ./configure --target-list=x86_64-softmmu
@@ -67,7 +67,7 @@ $ make -j $(nproc) install
 
 # Install the Big Module in the Host
 ```
-$ git clone git@github.com:tcheng8/big.git
+$ git clone git@github.com:osnetsvn/big.git
 $ cd big
 $ git checkout origin/mvm-4.10.1 -b mvm-4.10.1
 
@@ -172,7 +172,7 @@ $ taskset -cp 2 1001
 
 # Enable Direct Interrupt Delivery in the Guest
 ```
-$ git clone git@github.com:tcheng8/big.git
+$ git clone git@github.com:osnetsvn/big.git
 $ cd big
 $ git checkout origin/guest -b guest
 $ git checkout 81b75d8 -b guest-4.10.1
