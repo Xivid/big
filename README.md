@@ -55,11 +55,11 @@ $ reboot
 
 # Install QEMU 4.1.0
 ```
-$ apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev flex bison libnfs-dev libiscsi-dev
+$ apt install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev flex bison libnfs-dev libiscsi-dev libcap-dev libattr1-dev
 $ git clone git@github.com:osnetsvn/qemu-4.1.0.git
 $ cd qemu-4.1.0
 $ git checkout origin/mvm -b mvm
-$ ./configure --target-list=x86_64-softmmu
+$ ./configure --target-list=x86_64-softmmu --enable-virtfs
 $ make -j $(nproc)
 $ make -j $(nproc)
 $ make -j $(nproc) install
