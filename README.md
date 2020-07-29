@@ -117,6 +117,19 @@ Example: map VCPU(0) to PCPU(1) and VCPU(1) to PCPU(2)
 ```
 $ last=1
 $ for i in `seq 0 $last`; do echo "$i $(( i + 1 ))"; done > map.txt
+$ cat map.txt
+0 1
+1 2
+```
+For the second VM, we will do the same by specifying the mapping
+differently. For example, the hypervisor would like to pass-through
+PCPU(3) to VCPU(0), PCPU(4) to VCPU(1). 
+Then,the file contains the following three records:
+```
+$ cat map.txt
+0 3
+1 4
+
 ```
 
 # Boot up a VM
