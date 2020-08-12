@@ -218,3 +218,25 @@ $ make remove
   # assume the VM's IP is 10.128.0.131.
   iperf -c 10.128.0.131 -t 10 -i 1
   ```
+
+# Cyclictest
+	Cyclictest will measure the timer latency.
+- Clone the cyclictest repo
+  ```
+  $ git clone https://github.com/osnetsvn/cyclictest.git
+  ```
+- Compile and run the test
+  ```
+  $ cd cyclictest
+  $ make
+  $ mkdir trace
+  $ ./kcyclictest.sh 1 20 hi
+  ```
+- View the test result
+  ```
+  $ cat /sys/kernel/debug/tracing/trace
+  ```
+- Clean the test result
+  ```
+  $ echo > /sys/kernel/debug/tracing/trace
+  ```
