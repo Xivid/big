@@ -220,7 +220,8 @@ $ make remove
   ```
 
 # Cyclictest
-	Cyclictest will measure the timer latency.
+Cyclictest will measure the timer latency.
+
 - Clone the cyclictest repo
   ```
   $ git clone https://github.com/osnetsvn/cyclictest.git
