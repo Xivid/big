@@ -241,3 +241,57 @@ Cyclictest will measure the timer latency.
   ```
   $ echo > /sys/kernel/debug/tracing/trace
   ```
+
+# Network Performance Measurement
+We will measure the network throughput and latency.
+
+- Install iPerf3
+  ```
+  $ sudo apt-get install iperf3
+  ```
+- Run iPerf servers on another host
+  ```
+  $ ./run_iperf_servers.sh
+  ```
+
+- Tune network configuration in the guest
+  ```
+  $ ./tune_network.sh
+  ```
+- Change the iPerf servers IP address
+  ```
+  $ vim run_iperf_clients.sh
+  ```
+- Run iPerf clients in the guest
+  ```
+  $ ./run_iperf_clients.sh
+  ```
+  We will observe following bandwidth performance on 40Gbps NIC
+  ```
+  s1:  - - - - - - - - - - - - - - - - - - - - - - - - -
+  s1:  [ ID] Interval           Transfer     Bandwidth       Retr
+  s1:  [  4]   0.00-15.00  sec  32.6 GBytes  18.7 Gbits/sec    0             sender
+  s1:  [  4]   0.00-15.00  sec  32.6 GBytes  18.7 Gbits/sec                  receiver
+  s1:  
+  s1:  iperf Done.
+  s2:  [  4]  14.00-15.00  sec  2.18 GBytes  18.8 Gbits/sec    0   1.17 MBytes       
+  s2:  - - - - - - - - - - - - - - - - - - - - - - - - -
+  s2:  [ ID] Interval           Transfer     Bandwidth       Retr
+  s2:  [  4]   0.00-15.00  sec  32.6 GBytes  18.7 Gbits/sec    0             sender
+  s2:  [  4]   0.00-15.00  sec  32.6 GBytes  18.7 Gbits/sec                  receiver
+  ```
+- Run ping to measure the network latency
+  ```
+  $ ping -c 10 192.168.0.13
+  PING 192.168.0.13 (192.168.0.13) 56(84) bytes of data.
+  64 bytes from 192.168.0.13: icmp_seq=1 ttl=64 time=0.117 ms
+  64 bytes from 192.168.0.13: icmp_seq=2 ttl=64 time=0.114 ms
+  64 bytes from 192.168.0.13: icmp_seq=3 ttl=64 time=0.108 ms
+  64 bytes from 192.168.0.13: icmp_seq=4 ttl=64 time=0.146 ms
+  64 bytes from 192.168.0.13: icmp_seq=5 ttl=64 time=0.142 ms
+  64 bytes from 192.168.0.13: icmp_seq=6 ttl=64 time=0.106 ms
+  64 bytes from 192.168.0.13: icmp_seq=7 ttl=64 time=0.107 ms
+  64 bytes from 192.168.0.13: icmp_seq=8 ttl=64 time=0.119 ms
+  64 bytes from 192.168.0.13: icmp_seq=9 ttl=64 time=0.139 ms
+  64 bytes from 192.168.0.13: icmp_seq=10 ttl=64 time=0.138 ms
+  ```
