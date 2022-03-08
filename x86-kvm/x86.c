@@ -22,7 +22,6 @@
 /* OSNET */
 //#include <linux/kvm_host.h>
 #include "../include/linux/kvm_host.h"
-#include "../include/asm/kvm_emulate.h"
 /* OSNET-END */
 #include "irq.h"
 #include "mmu.h"
@@ -3044,8 +3043,8 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	process_nmi(vcpu);
 
 	events->exception.injected =
-			vcpu->arch.exception.pending &&
-			!kvm_exception_is_soft(vcpu->arch.exception.nr);
+		vcpu->arch.exception.pending &&
+		!kvm_exception_is_soft(vcpu->arch.exception.nr);
 	events->exception.nr = vcpu->arch.exception.nr;
 	events->exception.has_error_code = vcpu->arch.exception.has_error_code;
 	events->exception.error_code = vcpu->arch.exception.error_code;
@@ -4416,17 +4415,12 @@ int kvm_read_guest_virt(struct x86_emulate_ctxt *ctxt,
 }
 EXPORT_SYMBOL_GPL(kvm_read_guest_virt);
 
-static int emulator_read_std(struct x86_emulate_ctxt *ctxt,
-			     gva_t addr, void *val, unsigned int bytes,
-			     struct x86_exception *exception, bool system)
+static int kvm_read_guest_virt_system(struct x86_emulate_ctxt *ctxt,
+				      gva_t addr, void *val, unsigned int bytes,
+				      struct x86_exception *exception)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
-	u32 access = 0;
-
-	if (!system && kvm_x86_ops->get_cpl(vcpu) == 3)
-		access |= PFERR_USER_MASK;
-
-	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, access, exception);
+	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, exception);
 }
 
 static int kvm_read_guest_phys_system(struct x86_emulate_ctxt *ctxt,
@@ -4436,51 +4430,6 @@ static int kvm_read_guest_phys_system(struct x86_emulate_ctxt *ctxt,
 	int r = kvm_vcpu_read_guest(vcpu, addr, val, bytes);
 
 	return r < 0 ? X86EMUL_IO_NEEDED : X86EMUL_CONTINUE;
-}
-
-static int kvm_write_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
-				      struct kvm_vcpu *vcpu, u32 access,
-				      struct x86_exception *exception)
-{
-	void *data = val;
-	int r = X86EMUL_CONTINUE;
-
-	while (bytes) {
-		gpa_t gpa =  vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr,
-							     access,
-							     exception);
-		unsigned offset = addr & (PAGE_SIZE-1);
-		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
-		int ret;
-
-		if (gpa == UNMAPPED_GVA)
-			return X86EMUL_PROPAGATE_FAULT;
-		ret = kvm_vcpu_write_guest(vcpu, gpa, data, towrite);
-		if (ret < 0) {
-			r = X86EMUL_IO_NEEDED;
-			goto out;
-		}
-
-		bytes -= towrite;
-		data += towrite;
-		addr += towrite;
-	}
-out:
-	return r;
-}
-
-static int emulator_write_std(struct x86_emulate_ctxt *ctxt, gva_t addr, void *val,
-			      unsigned int bytes, struct x86_exception *exception,
-			      bool system)
-{
-	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
-	u32 access = PFERR_WRITE_MASK;
-
-	if (!system && kvm_x86_ops->get_cpl(vcpu) == 3)
-		access |= PFERR_USER_MASK;
-
-	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu,
-					   access, exception);
 }
 
 int kvm_write_guest_virt_system(struct x86_emulate_ctxt *ctxt,
@@ -5192,10 +5141,10 @@ static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
 	return kvm_x86_ops->check_intercept(emul_to_vcpu(ctxt), info, stage);
 }
 
-static bool emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
-			u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, bool check_limit)
+static void emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
+			       u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 {
-	return kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx, check_limit);
+	kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx);
 }
 
 static ulong emulator_read_gpr(struct x86_emulate_ctxt *ctxt, unsigned reg)
@@ -5216,8 +5165,8 @@ static void emulator_set_nmi_mask(struct x86_emulate_ctxt *ctxt, bool masked)
 static const struct x86_emulate_ops emulate_ops = {
 	.read_gpr            = emulator_read_gpr,
 	.write_gpr           = emulator_write_gpr,
-	.read_std            = emulator_read_std,
-	.write_std           = emulator_write_std,
+	.read_std            = kvm_read_guest_virt_system,
+	.write_std           = kvm_write_guest_virt_system,
 	.read_phys           = kvm_read_guest_phys_system,
 	.fetch               = kvm_fetch_guest_virt,
 	.read_emulated       = emulator_read_emulated,
@@ -5247,6 +5196,8 @@ static const struct x86_emulate_ops emulate_ops = {
 	.halt                = emulator_halt,
 	.wbinvd              = emulator_wbinvd,
 	.fix_hypercall       = emulator_fix_hypercall,
+	.get_fpu             = emulator_get_fpu,
+	.put_fpu             = emulator_put_fpu,
 	.intercept           = emulator_intercept,
 	.get_cpuid           = emulator_get_cpuid,
 	.set_nmi_mask        = emulator_set_nmi_mask,
@@ -5293,8 +5244,6 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
 	ctxt->eflags = kvm_get_rflags(vcpu);
-	ctxt->tf = (ctxt->eflags & X86_EFLAGS_TF) != 0;
-
 	ctxt->eip = kvm_rip_read(vcpu);
 	ctxt->mode = (!is_protmode(vcpu))		? X86EMUL_MODE_REAL :
 		     (ctxt->eflags & X86_EFLAGS_VM)	? X86EMUL_MODE_VM86 :
@@ -5849,7 +5798,7 @@ static void __kvmclock_cpufreq_notifier(struct cpufreq_freqs *freq, int cpu)
 
 	smp_call_function_single(cpu, tsc_khz_changed, freq, 1);
 
-	mutex_lock(&kvm_lock);
+	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (vcpu->cpu != cpu)
@@ -5859,7 +5808,7 @@ static void __kvmclock_cpufreq_notifier(struct cpufreq_freqs *freq, int cpu)
 				send_ipi = 1;
 		}
 	}
-	mutex_unlock(&kvm_lock);
+	spin_unlock(&kvm_lock);
 
 	if (freq->old < freq->new && send_ipi) {
 		/*
@@ -6243,7 +6192,7 @@ static unsigned long osnet_page_walk(struct mm_struct *mm, unsigned long addr)
         }
         pr_info("PGD: 0x%p\t0x%lx\n", pgd, pgd_val(*pgd));
 
-        pud = pud_offset(pgd, addr);
+        pud = pud_offset((p4d_t *) pgd, addr);
         if (pud_none(*pud)) {
                 pr_info("PUD does not exist\n");
                 goto out;
