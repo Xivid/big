@@ -3,7 +3,6 @@
 VIRT-KVM := virt-kvm
 VIRT-KVM-LIB := $(VIRT-KVM)/lib
 X86-KVM := x86-kvm
-LIB-MODULES := 5.4.0-100-generic
 
 kvm-y += $(VIRT-KVM)/kvm_main.o $(VIRT-KVM)/coalesced_mmio.o \
          $(VIRT-KVM)/eventfd.o $(VIRT-KVM)/irqchip.o $(VIRT-KVM)/vfio.o
@@ -26,7 +25,7 @@ ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 all: modules
 
 modules:
-	make -C /lib/modules/$(LIB-MODULES)/build M=$(PWD) modules
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 insert:
 	insmod irqbypass.ko
@@ -44,7 +43,7 @@ cscope:
 
 .PHONY: clean cclean
 clean:
-	make -C /lib/modules/$(LIB-MODULES)/build M=$(PWD) clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 
 cclean:
 	rm cscope* tags

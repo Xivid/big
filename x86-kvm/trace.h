@@ -1367,7 +1367,7 @@ TRACE_EVENT(kvm_hv_timer_state,
 
 #undef TRACE_INCLUDE_PATH
 //#define TRACE_INCLUDE_PATH arch/x86/kvm
-#define TRACE_INCLUDE_PATH /home/tcheng8/big/x86-kvm
+#define TRACE_INCLUDE_PATH /home/zhifeiy/directvisor/big/x86-kvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

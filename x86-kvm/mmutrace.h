@@ -326,7 +326,7 @@ TRACE_EVENT(
 
 #undef TRACE_INCLUDE_PATH
 //#define TRACE_INCLUDE_PATH .
-#define TRACE_INCLUDE_PATH /home/tcheng8/big/x86-kvm
+#define TRACE_INCLUDE_PATH /home/zhifeiy/directvisor/big/x86-kvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE mmutrace
 

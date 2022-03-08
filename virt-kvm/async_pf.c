@@ -22,6 +22,7 @@
 
 //#include <linux/kvm_host.h>
 #include "../include/linux/kvm_host.h"
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mmu_context.h>
@@ -111,7 +112,7 @@ static void async_pf_execute(struct work_struct *work)
 	 */
 	smp_mb();
 	if (swait_active(&vcpu->wq))
-		swake_up(&vcpu->wq);
+		swake_up_one(&vcpu->wq);
 
 	mmput(mm);
 	kvm_put_kvm(vcpu->kvm);
